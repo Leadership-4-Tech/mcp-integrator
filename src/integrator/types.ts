@@ -1,8 +1,10 @@
+import { ZodSchema } from 'zod'
 import {
   McpIntegratorConfig,
   Provider,
   McpTool,
   OpenAPISchema,
+  XOR,
 } from '../common/types.js'
 
 export type OpenAIToolFormat = Readonly<{
@@ -10,20 +12,20 @@ export type OpenAIToolFormat = Readonly<{
   function: Readonly<{
     name: string
     description: string
-    properties: OpenAPISchema
+    properties: XOR<OpenAPISchema, ZodSchema>
   }>
 }>
 
 export type ClaudeToolFormat = Readonly<{
   name: string
   description: string
-  input_schema: OpenAPISchema
+  input_schema: XOR<OpenAPISchema, ZodSchema>
 }>
 
 export type AwsBedrockClaudeToolFormat = Readonly<{
   name: string
   description: string
-  input_schema: OpenAPISchema
+  input_schema: XOR<OpenAPISchema, ZodSchema>
 }>
 
 export type ToolFormat<P extends Provider> = P extends Provider.OpenAI
