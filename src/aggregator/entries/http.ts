@@ -4,7 +4,7 @@ import cors from 'cors'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
-
+import bodyParser from 'body-parser'
 import {
   McpAggregatorHttpConfig,
   McpClientConfigs,
@@ -12,7 +12,7 @@ import {
 } from '../../common/types.js'
 import { create as createFeatures } from '../features.js'
 import { openApiToZodSchema } from '../../common/libs.js'
-import bodyParser from 'body-parser'
+
 const DEFAULT_PORT = 3000
 const BAD_REQUEST_STATUS = 400
 const NOT_FOUND_STATUS = 404

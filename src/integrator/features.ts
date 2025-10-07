@@ -36,7 +36,8 @@ const create = <P extends Provider>(
   const getTools = async (): Promise<readonly McpTool[]> => {
     const tools = await services.getTools()
     return config.includeListToolsTool !== false
-      ? [listToolsTool].concat(tools)
+      ? // @ts-ignore
+        [listToolsTool].concat(tools)
       : tools
   }
 

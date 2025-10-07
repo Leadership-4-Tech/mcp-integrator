@@ -1,6 +1,7 @@
 import express from 'express'
 import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { ClientCapabilities } from '@modelcontextprotocol/sdk/types.js'
+import { ZodSchema } from 'zod'
 
 /**
  * A value that can be serialized to JSON
@@ -29,6 +30,11 @@ export enum Provider {
   OpenAI = 'openai',
   AwsBedrockClaude = 'aws-bedrock-claude',
 }
+type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never }
+
+type XOR<T, U> = T | U extends object
+  ? (Without<T, U> & U) | (Without<U, T> & T)
+  : T | U
 
 /**
  * Definition of an MCP tool
@@ -36,8 +42,8 @@ export enum Provider {
 export type McpTool = Readonly<{
   name: string
   description: string
-  inputSchema: OpenAPISchema
-  outputSchema?: OpenAPISchema
+  inputSchema: XOR<OpenAPISchema, ZodSchema>
+  outputSchema?: XOR<OpenAPISchema, ZodSchema>
 }>
 
 /**

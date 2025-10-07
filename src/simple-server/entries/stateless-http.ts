@@ -9,8 +9,8 @@ import { create as createFeatures } from '../features.js'
 import { SimpleServerHttpConfig } from '../types.js'
 
 const DEFAULT_PORT = 3000
-const BAD_REQUEST_STATUS = 400
 const NOT_FOUND_STATUS = 404
+const UNHANDLED_REQUEST_STATUS = 405
 
 const create = (config: SimpleServerHttpConfig, options?: ExpressOptions) => {
   const app = express()
@@ -43,36 +43,22 @@ const create = (config: SimpleServerHttpConfig, options?: ExpressOptions) => {
 
   const handleRequest =
     (features: any) => async (req: express.Request, res: express.Response) => {
-      try {
-        const server = await setupServer(features)
-        const transport: StreamableHTTPServerTransport =
-          new StreamableHTTPServerTransport({
-            sessionIdGenerator: undefined,
-            enableJsonResponse: true,
-          })
-        res.on('close', () => {
-          transport.close()
-          server.close()
+      const server = await setupServer(features)
+      const transport: StreamableHTTPServerTransport =
+        new StreamableHTTPServerTransport({
+          sessionIdGenerator: undefined,
+          enableJsonResponse: true,
         })
-        await server.connect(transport)
-        await transport.handleRequest(req, res, req.body)
-      } catch (error) {
-        console.error('Error handling MCP request:', error)
-        if (!res.headersSent) {
-          res.status(500).json({
-            jsonrpc: '2.0',
-            error: {
-              code: -32603,
-              message: 'Internal server error',
-            },
-            id: null,
-          })
-        }
-      }
+      res.on('close', () => {
+        transport.close()
+        server.close()
+      })
+      await server.connect(transport)
+      await transport.handleRequest(req, res, req.body)
     }
 
   const _unhandledRequest = (req, res: express.Response) => {
-    res.writeHead(405).end(
+    res.writeHead(UNHANDLED_REQUEST_STATUS).end(
       JSON.stringify({
         jsonrpc: '2.0',
         error: {

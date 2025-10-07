@@ -1,4 +1,4 @@
-import { openApiToZodSchema } from '../common/libs.js'
+import { isZodSchema, openApiToZodSchema } from '../common/libs.js'
 import { SimpleServerConfig } from './types.js'
 
 export const create = (config: SimpleServerConfig) => {
@@ -8,7 +8,9 @@ export const create = (config: SimpleServerConfig) => {
     return tools.map(tool => [
       tool.name,
       tool.description || '',
-      openApiToZodSchema(tool.inputSchema),
+      isZodSchema(tool.inputSchema)
+        ? tool.inputSchema
+        : openApiToZodSchema(tool.inputSchema),
       async (input: any) => {
         const result = await tool.execute(input)
         if (result === undefined) {
