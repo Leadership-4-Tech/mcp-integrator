@@ -10,7 +10,6 @@ const create = (config: SimpleServerCliConfig) => {
     const server = new McpServer({
       name: config.name,
       version: config.version,
-      capabilities: { tools: config.tools },
     })
 
     const formatted = features.getFormattedTools()

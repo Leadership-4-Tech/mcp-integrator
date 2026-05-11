@@ -1,7 +1,12 @@
 import { isZodSchema, openApiToZodSchema } from '../common/libs.js'
 import { SimpleServerConfig } from './types.js'
 
-export const create = (config: SimpleServerConfig) => {
+interface Features {
+  getFormattedTools: () => any[]
+  validateConfig: () => void
+}
+
+export const create = (config: SimpleServerConfig): Features => {
   const tools = config.tools
 
   const getFormattedTools = () => {
