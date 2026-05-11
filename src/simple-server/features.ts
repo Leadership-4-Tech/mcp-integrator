@@ -1,4 +1,4 @@
-import { isZodSchema, openApiToZodSchema } from '../common/libs.js'
+import { isZodSchema, isZodRawShape, wrapRawShape, openApiToZodSchema } from '../common/libs.js'
 import { SimpleServerConfig } from './types.js'
 
 interface Features {
@@ -10,27 +10,55 @@ export const create = (config: SimpleServerConfig): Features => {
   const tools = config.tools
 
   const getFormattedTools = () => {
-    return tools.map(tool => [
-      tool.name,
-      tool.description || '',
-      isZodSchema(tool.inputSchema)
-        ? tool.inputSchema
-        : openApiToZodSchema(tool.inputSchema),
-      async (input: any) => {
-        const result = await tool.execute(input)
-        if (result === undefined) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(null),
-              },
-            ],
+    return tools.map(tool => {
+      // For raw shapes, pass them through directly - the SDK will wrap with z.object()
+      // This avoids cross-package Zod instance issues
+      if (isZodRawShape(tool.inputSchema)) {
+        return [
+          tool.name,
+          tool.description || '',
+          tool.inputSchema,  // Pass raw shape directly
+          async (input: any) => {
+            const result = await tool.execute(input)
+            if (result === undefined) {
+              return {
+                content: [
+                  {
+                    type: 'text',
+                    text: JSON.stringify(null),
+                  },
+                ],
+              }
+            }
+            return result
+          },
+        ]
+      }
+
+      // For Zod schemas (same instance), use directly
+      // For OpenAPI, convert to Zod shape
+      return [
+        tool.name,
+        tool.description || '',
+        isZodSchema(tool.inputSchema)
+          ? tool.inputSchema
+          : openApiToZodSchema(tool.inputSchema),
+        async (input: any) => {
+          const result = await tool.execute(input)
+          if (result === undefined) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(null),
+                },
+              ],
+            }
           }
-        }
-        return result
-      },
-    ])
+          return result
+        },
+      ]
+    })
   }
 
   const validateConfig = () => {

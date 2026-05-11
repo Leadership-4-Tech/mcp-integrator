@@ -215,6 +215,34 @@ const createZodTypeFromDefinition = (def: any): ZodType => {
   return zodType
 }
 
+/**
+ * Check if value is a Zod schema using instanceof.
+ */
 export const isZodSchema = (schema: any): schema is ZodSchema => {
   return schema instanceof ZodSchema
+}
+
+/**
+ * Check if value is a raw shape (plain object with Zod validators).
+ * Raw shapes don't have _def/_zod but their values do.
+ */
+const isZodTypeLike = (value: any): boolean => {
+  return value && 
+    typeof value === 'object' && 
+    typeof value.parse === 'function' &&
+    typeof value.safeParse === 'function'
+}
+
+export const isZodRawShape = (schema: any): boolean => {
+  if (!schema || typeof schema !== 'object') return false
+  if (schema instanceof ZodSchema) return false  // Already a schema
+  const values = Object.values(schema)
+  return values.length > 0 && values.every(isZodTypeLike)
+}
+
+/**
+ * Wrap a raw shape into a Zod object schema.
+ */
+export const wrapRawShape = (shape: any): ZodSchema => {
+  return z.object(shape)
 }
