@@ -56,6 +56,28 @@ export const createTransport = (connection: Connection) => {
   )
 }
 
+/**
+ * Defensive preprocessor for Zod schemas.
+ * Some MCP clients (like Kai) stringify arrays in JSON-RPC requests.
+ * This creates a pre-processor that attempts to parse stringified JSON before validation.
+ */
+const createStringifiedPreprocessor = (innerType: ZodType): ZodType => {
+  return z.preprocess(
+    (val) => {
+      // If it's a string, try to parse it as JSON
+      if (typeof val === 'string') {
+        try {
+          return JSON.parse(val)
+        } catch {
+          return val // Return as-is if not valid JSON
+        }
+      }
+      return val // Return as-is if not a string
+    },
+    innerType
+  ) as unknown as ZodType
+}
+
 export const openApiToZodSchema = (
   parameters: any
 ): Record<string, ZodType> => {
@@ -170,10 +192,16 @@ const createZodTypeFromDefinition = (def: any): ZodType => {
         const enumType = createEnumOrLiterals(enumValues, 'boolean')
         return enumType ?? z.boolean()
       }
-      case 'array':
-        return z.array(items ? createZodTypeFromDefinition(items) : z.any())
-      case 'object':
-        return z.object(openApiToZodSchema(def)).passthrough()
+      case 'array': {
+        // Wrap arrays with stringified JSON preprocessor to handle Kai's serialization
+        const innerArray = z.array(items ? createZodTypeFromDefinition(items) : z.any())
+        return createStringifiedPreprocessor(innerArray)
+      }
+      case 'object': {
+        // Wrap objects with stringified JSON preprocessor to handle Kai's serialization
+        const innerObject = z.object(openApiToZodSchema(def)).passthrough()
+        return createStringifiedPreprocessor(innerObject)
+      }
       default: {
         const enumType = createEnumOrLiterals(enumValues, null)
         return enumType ?? z.any()
