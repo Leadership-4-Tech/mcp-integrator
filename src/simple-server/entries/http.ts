@@ -109,7 +109,7 @@ const create = (config: SimpleServerHttpConfig, options?: ExpressOptions) => {
     await transport.handleRequest(req, res)
   }
 
-  const _routeWrapper = async (
+  const _routeWrapper = (
     func: (req: express.Request, res: express.Response) => Promise<void> | void
   ) => {
     if (options?.afterRouteCallback) {

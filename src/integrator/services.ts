@@ -29,13 +29,14 @@ const createExecuteToolCalls =
     asyncMap(
       calls,
       async call => {
+        // Extract arguments, handling both wrapped and unwrapped formats
+        const input = call.input as { arguments?: unknown } | undefined
+        const args = input?.arguments ?? call.input
+
         const result = await client
           .callTool({
-            id: call.id,
             name: call.name,
-            // @ts-ignore I have absolutely seen the requirement to have this.
-            arguments: call.input,
-            input: call.input,
+            arguments: args as Record<string, unknown> | undefined,
           })
           .catch(e => {
             console.error(e)

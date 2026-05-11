@@ -9,6 +9,39 @@ import { createTransport } from '../common/libs.js'
 
 const DEFAULT_MAX_PARALLEL_CALLS = 10
 
+/**
+ * Defensive parser for stringified JSON values in params.
+ * Some MCP clients (like Kai) may stringify arrays/objects in the JSON-RPC request.
+ * This recursively walks params and parses any stringified JSON.
+ */
+const parseStringifiedParams = (value: unknown): unknown => {
+  // If it's a string, try to parse it as JSON
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      // Recursively parse the result (in case of nested stringification)
+      return parseStringifiedParams(parsed)
+    } catch {
+      // Not valid JSON, return as-is
+      return value
+    }
+  }
+  // If it's an array, recursively parse each element
+  if (Array.isArray(value)) {
+    return value.map(parseStringifiedParams)
+  }
+  // If it's an object, recursively parse each value
+  if (value !== null && typeof value === 'object') {
+    return Object.entries(value).reduce((acc, [key, val]) => {
+      // eslint-disable-next-line functional/immutable-data
+      acc[key] = parseStringifiedParams(val)
+      return acc
+    }, {} as Record<string, unknown>)
+  }
+  // Primitive value, return as-is
+  return value
+}
+
 const create = (config: McpAggregatorConfig) => {
   // eslint-disable-next-line functional/no-let
   let clients: Record<string, Client> = {}
@@ -48,9 +81,12 @@ const create = (config: McpAggregatorConfig) => {
       return allTools.flat()
     },
     executeTool: async (toolName: string, params: any) => {
+      // Parse any stringified JSON in params (defensive fix for Kai stringification bug)
+      const parsedParams = parseStringifiedParams(params)
+      
       const client = toolToClient[toolName]
       return client
-        .callTool({ name: toolName, arguments: params })
+        .callTool({ name: toolName, arguments: parsedParams as Record<string, unknown> | undefined })
         .catch(() => [])
     },
   }

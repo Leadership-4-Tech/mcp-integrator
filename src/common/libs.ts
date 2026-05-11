@@ -56,6 +56,28 @@ export const createTransport = (connection: Connection) => {
   )
 }
 
+/**
+ * Defensive preprocessor for Zod schemas.
+ * Some MCP clients (like Kai) stringify arrays in JSON-RPC requests.
+ * This creates a pre-processor that attempts to parse stringified JSON before validation.
+ */
+const createStringifiedPreprocessor = (innerType: ZodType): ZodType => {
+  return z.preprocess(
+    (val) => {
+      // If it's a string, try to parse it as JSON
+      if (typeof val === 'string') {
+        try {
+          return JSON.parse(val)
+        } catch {
+          return val // Return as-is if not valid JSON
+        }
+      }
+      return val // Return as-is if not a string
+    },
+    innerType
+  ) as unknown as ZodType
+}
+
 export const openApiToZodSchema = (
   parameters: any
 ): Record<string, ZodType> => {
@@ -170,10 +192,16 @@ const createZodTypeFromDefinition = (def: any): ZodType => {
         const enumType = createEnumOrLiterals(enumValues, 'boolean')
         return enumType ?? z.boolean()
       }
-      case 'array':
-        return z.array(items ? createZodTypeFromDefinition(items) : z.any())
-      case 'object':
-        return z.object(openApiToZodSchema(def)).passthrough()
+      case 'array': {
+        // Wrap arrays with stringified JSON preprocessor to handle Kai's serialization
+        const innerArray = z.array(items ? createZodTypeFromDefinition(items) : z.any())
+        return createStringifiedPreprocessor(innerArray)
+      }
+      case 'object': {
+        // Wrap objects with stringified JSON preprocessor to handle Kai's serialization
+        const innerObject = z.object(openApiToZodSchema(def)).passthrough()
+        return createStringifiedPreprocessor(innerObject)
+      }
       default: {
         const enumType = createEnumOrLiterals(enumValues, null)
         return enumType ?? z.any()
@@ -187,6 +215,34 @@ const createZodTypeFromDefinition = (def: any): ZodType => {
   return zodType
 }
 
+/**
+ * Check if value is a Zod schema using instanceof.
+ */
 export const isZodSchema = (schema: any): schema is ZodSchema => {
   return schema instanceof ZodSchema
+}
+
+/**
+ * Check if value is a raw shape (plain object with Zod validators).
+ * Raw shapes don't have _def/_zod but their values do.
+ */
+const isZodTypeLike = (value: any): boolean => {
+  return value && 
+    typeof value === 'object' && 
+    typeof value.parse === 'function' &&
+    typeof value.safeParse === 'function'
+}
+
+export const isZodRawShape = (schema: any): boolean => {
+  if (!schema || typeof schema !== 'object') return false
+  if (schema instanceof ZodSchema) return false  // Already a schema
+  const values = Object.values(schema)
+  return values.length > 0 && values.every(isZodTypeLike)
+}
+
+/**
+ * Wrap a raw shape into a Zod object schema.
+ */
+export const wrapRawShape = (shape: any): ZodSchema => {
+  return z.object(shape)
 }
